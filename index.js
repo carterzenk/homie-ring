@@ -1,30 +1,15 @@
+const HomieRing = require('./src/homie-ring');
 const ringApi = require('./src/ring-api');
-const logger = require('./src/logger');
 
-const findLocations = async () => {
-    logger.info("Finding locations...");
-    const locations = await ringApi.getLocations();
-    logger.info("Found {count} locations", { count: locations.length });
+const homieRing = new HomieRing(ringApi);
 
-    if (locations.length === 1) {
-        const location = locations[0]
+homieRing.start();
 
-        logger.info("Finding devices...");
-        const devices = await location.getDevices();
-        logger.info("Found {count} devices", { count: devices.length });
-
-        devices.forEach((device) => {
-            logger.info("Found {device}", device.data);
-        });
-
-        logger.info("Found {count} cameras", { count: location.cameras.length });
-
-        location.cameras.forEach((camera) => {
-            logger.info("Found {camera}", camera.data);
-        });
-    } else {
-        logger.warn("Unexpected number of locations.");
-    }
+const onExit = () => {
+    homieRing.stop().then(() => {
+        process.exit();
+    });
 }
 
-findLocations();
+process.on('SIGINT', onExit);
+process.on('SIGTERM', onExit);

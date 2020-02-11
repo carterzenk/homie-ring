@@ -6,14 +6,10 @@ const merge = require('lodash.merge');
 const filename = 'homie-ring.yaml';
 
 const defaults = {
-    homie: {
-        device_name: "Ring",
-        device_id: "ring"
-    },
     mqtt: {
         host: 'localhost',
         port: 1883,
-        base_topic: 'devices/',
+        base_topic: 'devices/ring/',
         auth: false
     },
     ring: {},
