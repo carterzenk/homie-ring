@@ -53,7 +53,7 @@ class HomieRing {
     }
 
     async setupLocation(location) {
-        logger.debug("Setting up {locationId}", {locationId: location.locationId});
+        logger.info("Setting up {locationId}", {locationId: location.locationId});
 
         await this.setupCameras(location);
         await this.setupDevices(location);
@@ -86,7 +86,8 @@ class HomieRing {
         if (deviceType) {
             logger.info("Setting up {device}", {
                 id: device.id,
-                name: device.name
+                name: device.name,
+                type: device.deviceType
             });
 
             const ringDevice = new deviceType(device);

@@ -1,5 +1,10 @@
 const BaseDevice = require('./base-device');
 
+const CAMERA_PROPS = {
+    SNAPSHOT_DATA: 'snapshot_data',
+    SNAPSHOT_LAST_UPDATED: 'snapshot_last_updated'
+};
+
 const BATTERY_PROPS = {
     LEVEL: 'level',
     IS_LOW: 'is_low'
@@ -17,7 +22,9 @@ class CameraDevice extends BaseDevice {
 
         this.batteryNode,
         this.lightNode,
-        this.sirenNode = null;
+        this.cameraNode = null;
+
+        this.setCameraNode();
 
         if (ringDevice.hasBattery) {
             this.setBatteryNode();
@@ -26,10 +33,24 @@ class CameraDevice extends BaseDevice {
         if (ringDevice.hasLight) {
             this.setLightNode();
         }
+    }
 
-        if (ringDevice.hasSiren) {
-            this.setSirenNode();
-        }
+    setCameraNode() {
+        this.cameraNode = this.homieDevice.node('camera', 'Camera', 'camera');
+
+        this
+            .cameraNode
+            .advertise(CAMERA_PROPS.SNAPSHOT_DATA)
+            .setName("Snapshot Data")
+            .setRetained(true)
+            .setDatatype('string');
+
+        this
+            .cameraNode
+            .advertise(CAMERA_PROPS.SNAPSHOT_LAST_UPDATED)
+            .setName("Snapshot Last Updated")
+            .setRetained(true)
+            .setDatatype('integer');
     }
 
     setBatteryNode() {
@@ -65,23 +86,23 @@ class CameraDevice extends BaseDevice {
             })
     }
 
-    setSirenNode() {
-        //TODO: setup the siren node.
-    }
-
     publishData() {
         if (!this.homieDevice.isConnected) {
             return;
         }
 
-        this.publishBatteryLevel();
+        this.publishSnapshot();
+
+        if (this.batteryNode) {
+            this.publishBatteryLevel();
+        }
+
+        if (this.lightNode) {
+            this.publishLightStatus();
+        }
     }
 
     publishBatteryLevel() {
-        if (!this.batteryNode) {
-            return;
-        }
-
         const batteryLevel = `${this.ringDevice.batteryLevel}`;
         this.batteryNode.setProperty(BATTERY_PROPS.LEVEL).send(batteryLevel);
 
@@ -91,12 +112,18 @@ class CameraDevice extends BaseDevice {
     }
 
     publishLightStatus() {
-        if (!this.lightNode) {
-            return;
-        }
-
         const lightStatus = this.ringDevice.data.led_status;
         this.lightNode.setProperty(LIGHT_PROPS.STATUS).send(lightStatus);
+    }
+
+    async publishSnapshot() {
+        const snapshotData = await this.ringDevice.getSnapshot();
+
+        const responseTimestamp = `${snapshotData.responseTimestamp}`;
+        this.cameraNode.setProperty(CAMERA_PROPS.SNAPSHOT_LAST_UPDATED).send(responseTimestamp);
+
+        const base64Snapshot = snapshotData.toString('base64');
+        this.cameraNode.setProperty(CAMERA_PROPS.SNAPSHOT_DATA).send(base64Snapshot);
     }
 }
 
