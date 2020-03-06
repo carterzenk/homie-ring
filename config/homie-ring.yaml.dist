@@ -1,0 +1,13 @@
+mqtt:
+  host: localhost
+  port: 1883
+  base_topic: homie/
+  auth: false
+
+ring:
+  refreshToken:
+  cameraStatusPollingSeconds: 60
+  cameraSnapshotPollingSeconds: 600
+
+logger:
+  level: info

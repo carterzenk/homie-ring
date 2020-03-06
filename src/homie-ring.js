@@ -1,4 +1,5 @@
 const logger = require('./logger');
+const config = require('./config');
 
 const { RingDeviceType } = require('ring-client-api');
 
@@ -61,7 +62,17 @@ class HomieRing {
 
     async setupCameras(location) {
         await Promise.all(location.cameras.map(async camera => {
-            const cameraDevice = new CameraDevice(camera, location.locationId);
+            logger.info("Setting up {camera}", {
+                id: camera.id,
+                name: camera.name,
+                type: camera.deviceType
+            });
+
+            const cameraDevice = new CameraDevice(
+                camera,
+                location.locationId,
+                config.get().ring.cameraSnapshotPollingSeconds
+            );
             this.devices.push(cameraDevice);
             await cameraDevice.start();
         }));

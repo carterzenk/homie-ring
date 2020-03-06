@@ -1,4 +1,5 @@
 const BaseDevice = require('./base-device');
+const logger = require('../logger');
 
 const CAMERA_PROPS = {
     SNAPSHOT_DATA: 'snapshot_data',
@@ -15,14 +16,17 @@ const LIGHT_PROPS = {
 };
 
 class CameraDevice extends BaseDevice {
-    constructor(ringDevice, locationId) {
+    constructor(ringDevice, locationId, snapshotPollingSeconds) {
         // Use combination of location id and camera id to ensure uniqueness.
         const uniqueId = locationId + '-' + ringDevice.id;
         super(ringDevice, uniqueId);
 
         this.batteryNode,
         this.lightNode,
-        this.cameraNode = null;
+        this.cameraNode,
+        this.snapshotPublishInterval = null;
+
+        this.publishSnapshot = this.publishSnapshot.bind(this);
 
         this.setCameraNode();
 
@@ -32,6 +36,18 @@ class CameraDevice extends BaseDevice {
 
         if (ringDevice.hasLight) {
             this.setLightNode();
+        }
+
+        if (snapshotPollingSeconds) {
+            this.homieDevice.on('connect', () => {
+                this.snapshotPublishInterval = setInterval(this.publishSnapshot, snapshotPollingSeconds * 1000);
+            });
+
+            this.homieDevice.on('disconnect', () => {
+                if (this.snapshotPublishInterval) {
+                    clearInterval(this.snapshotPublishInterval);
+                }
+            });
         }
     }
 
@@ -91,8 +107,6 @@ class CameraDevice extends BaseDevice {
             return;
         }
 
-        this.publishSnapshot();
-
         if (this.batteryNode) {
             this.publishBatteryLevel();
         }
@@ -117,13 +131,18 @@ class CameraDevice extends BaseDevice {
     }
 
     async publishSnapshot() {
-        const snapshotData = await this.ringDevice.getSnapshot();
+        try {
+            logger.info('Refreshing snapshot on camera {id}.', { id: this.ringDevice.id });
+            const snapshotData = await this.ringDevice.getSnapshot();
 
-        const responseTimestamp = `${snapshotData.responseTimestamp}`;
-        this.cameraNode.setProperty(CAMERA_PROPS.SNAPSHOT_LAST_UPDATED).send(responseTimestamp);
+            const responseTimestamp = `${snapshotData.responseTimestamp}`;
+            this.cameraNode.setProperty(CAMERA_PROPS.SNAPSHOT_LAST_UPDATED).send(responseTimestamp);
 
-        const base64Snapshot = snapshotData.toString('base64');
-        this.cameraNode.setProperty(CAMERA_PROPS.SNAPSHOT_DATA).send(base64Snapshot);
+            const base64Snapshot = snapshotData.toString('base64');
+            this.cameraNode.setProperty(CAMERA_PROPS.SNAPSHOT_DATA).send(base64Snapshot);
+        } catch (err) {
+            logger.error("Encountered an {error} while refreshing snapshot.", { error: err.message });
+        }
     }
 }
 
