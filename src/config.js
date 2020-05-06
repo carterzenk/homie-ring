@@ -40,6 +40,11 @@ function load() {
     return yaml.safeLoad(configFile);
 }
 
+function write(content) {
+    const configPath = getConfigPath();
+    fs.writeFileSync(configPath, yaml.safeDump(content));
+}
+
 function getConfigPath() {
     let configPath = null;
     
@@ -53,6 +58,15 @@ function getConfigPath() {
     return path.join(configPath, filename);
 }
 
+function updateRefreshToken(newToken) {
+    const config = load();
+
+    config.ring.refreshToken = newToken;
+
+    write(config);
+}
+
 module.exports = {
-    get: getSettings
+    get: getSettings,
+    updateRefreshToken: updateRefreshToken
 };
