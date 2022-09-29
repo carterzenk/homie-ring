@@ -1,1 +1,0 @@
-{"version":3,"file":"range-extender.js","sourceRoot":"","sources":["../../src/devices/range-extender.ts"],"names":[],"mappings":";;;AAAA,+CAAyC;AACzC,qDAA+C;AAE/C,MAAa,aAAc,SAAQ,wBAAU;IAEzC,MAAM,CAAC,WAAW,CAAC,UAA0B;QACzC,OAAO,UAAU,KAAK,gCAAc,CAAC,aAAa,CAAC;IACvD,CAAC;CACJ;AALD,sCAKC"}
