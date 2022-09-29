@@ -1,30 +1,39 @@
-const BaseDevice = require('./base-device');
-const logger = require('../logger');
+import HomieNode from 'homie-device/lib/HomieNode';
+import {BaseDevice} from './base-device';
+import {Logger} from 'src/logger';
+import {RingCamera} from 'ring-client-api';
+import {Settings} from 'src/config';
 
-const CAMERA_PROPS = {
-    SNAPSHOT_DATA: 'snapshot_data',
-    SNAPSHOT_LAST_UPDATED: 'snapshot_last_updated'
+enum CameraProps {
+    SNAPSHOT_DATA = 'snapshot_data',
+    SNAPSHOT_LAST_UPDATED = 'snapshot_last_updated',
 };
 
-const BATTERY_PROPS = {
-    LEVEL: 'level',
-    IS_LOW: 'is_low'
+enum BatteryProps {
+    LEVEL = 'level',
+    IS_LOW = 'is_low',
+}
+
+enum LightProps {
+    STATUS = 'status',
 };
 
-const LIGHT_PROPS = {
-    STATUS: 'status'
-};
+export class CameraDevice extends BaseDevice<RingCamera> {
+    private batteryNode: HomieNode;
+    private lightNode: HomieNode;
+    private cameraNode: HomieNode;
+    private snapshotPublishInterval: NodeJS.Timer;
 
-class CameraDevice extends BaseDevice {
-    constructor(ringDevice, locationId, snapshotPollingSeconds) {
+    constructor(
+        logger: Logger,
+        settings: Settings,
+        ringDevice: RingCamera,
+        locationId: string,
+        snapshotPollingSeconds?: number,
+    ) {
         // Use combination of location id and camera id to ensure uniqueness.
         const uniqueId = locationId + '-' + ringDevice.id;
-        super(ringDevice, uniqueId);
-
-        this.batteryNode,
-        this.lightNode,
-        this.cameraNode,
-        this.snapshotPublishInterval = null;
+        super(logger, settings, ringDevice, uniqueId);
 
         this.publishSnapshot = this.publishSnapshot.bind(this);
 
@@ -56,14 +65,14 @@ class CameraDevice extends BaseDevice {
 
         this
             .cameraNode
-            .advertise(CAMERA_PROPS.SNAPSHOT_DATA)
+            .advertise(CameraProps.SNAPSHOT_DATA)
             .setName("Snapshot Data")
             .setRetained(true)
             .setDatatype('string');
 
         this
             .cameraNode
-            .advertise(CAMERA_PROPS.SNAPSHOT_LAST_UPDATED)
+            .advertise(CameraProps.SNAPSHOT_LAST_UPDATED)
             .setName("Snapshot Last Updated")
             .setRetained(true)
             .setDatatype('integer');
@@ -74,7 +83,7 @@ class CameraDevice extends BaseDevice {
 
         this
             .batteryNode
-            .advertise(BATTERY_PROPS.LEVEL)
+            .advertise(BatteryProps.LEVEL)
             .setName("Battery Level")
             .setRetained(true)
             .setDatatype('integer')
@@ -82,7 +91,7 @@ class CameraDevice extends BaseDevice {
 
         this
             .batteryNode
-            .advertise(BATTERY_PROPS.IS_LOW)
+            .advertise(BatteryProps.IS_LOW)
             .setName("Battery Level Low")
             .setRetained(true)
             .setDatatype('boolean');
@@ -93,11 +102,11 @@ class CameraDevice extends BaseDevice {
 
         this
             .lightNode
-            .advertise(LIGHT_PROPS.STATUS)
+            .advertise(LightProps.STATUS)
             .setName('Light Status')
             .setRetained(true)
             .setDatatype('boolean')
-            .settable((range, value) => {
+            .settable((__range, value) => {
                 this.ringDevice.setLight(value);
             })
     }
@@ -118,32 +127,30 @@ class CameraDevice extends BaseDevice {
 
     publishBatteryLevel() {
         const batteryLevel = `${this.ringDevice.batteryLevel}`;
-        this.batteryNode.setProperty(BATTERY_PROPS.LEVEL).send(batteryLevel);
+        this.batteryNode.setProperty(BatteryProps.LEVEL).send(batteryLevel);
 
         const battAlert = this.ringDevice.data.alerts.battery;
         const isLow = (battAlert === 'low' || battAlert === 'lowest') ? 'true' : 'false';
-        this.batteryNode.setProperty(BATTERY_PROPS.IS_LOW).send(isLow);
+        this.batteryNode.setProperty(BatteryProps.IS_LOW).send(isLow);
     }
 
     publishLightStatus() {
         const lightStatus = this.ringDevice.data.led_status;
-        this.lightNode.setProperty(LIGHT_PROPS.STATUS).send(lightStatus);
+        this.lightNode.setProperty(LightProps.STATUS).send(lightStatus);
     }
 
     async publishSnapshot() {
         try {
-            logger.info('Refreshing snapshot on camera {id}.', { id: this.ringDevice.id });
-            const snapshotData = await this.ringDevice.getSnapshot();
+            this.logger.info('Refreshing snapshot on camera {id}.', { id: this.ringDevice.id });
+            const snapshotData = await this.ringDevice.getNextSnapshot({});
 
             const responseTimestamp = `${snapshotData.responseTimestamp}`;
-            this.cameraNode.setProperty(CAMERA_PROPS.SNAPSHOT_LAST_UPDATED).send(responseTimestamp);
+            this.cameraNode.setProperty(CameraProps.SNAPSHOT_LAST_UPDATED).send(responseTimestamp);
 
             const base64Snapshot = snapshotData.toString('base64');
-            this.cameraNode.setProperty(CAMERA_PROPS.SNAPSHOT_DATA).send(base64Snapshot);
+            this.cameraNode.setProperty(CameraProps.SNAPSHOT_DATA).send(base64Snapshot);
         } catch (err) {
-            logger.error("Encountered an {error} while refreshing snapshot.", { error: err.message });
+            this.logger.error("Encountered an {error} while refreshing snapshot.", { error: err.message });
         }
     }
 }
-
-module.exports = CameraDevice;

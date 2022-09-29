@@ -1,16 +1,16 @@
-const RingDevice = require('./ring-device');
-const { RingDeviceType } = require('ring-client-api');
+import {RingDevice} from './ring-device';
+import {RingDeviceType} from 'ring-client-api';
 
-const SENSOR_PROPS = {
+const SensorProps = {
     CONTACT: 'contact',
     TAMPER: 'tamper'
 };
 
-class ContactSensor extends RingDevice {
-    constructor(ringDevice) {
-        super(ringDevice);
+export class ContactSensor extends RingDevice {
+    private sensorNode = null;
 
-        this.sensorNode = null;
+    constructor(logger, settings, ringDevice) {
+        super(logger, settings, ringDevice);
 
         this.setSensorNode();
     }
@@ -24,7 +24,7 @@ class ContactSensor extends RingDevice {
 
         this
             .sensorNode
-            .advertise(SENSOR_PROPS.CONTACT)
+            .advertise(SensorProps.CONTACT)
             .setName("Contact")
             .setRetained(true)
             .setDatatype('boolean');
@@ -37,8 +37,6 @@ class ContactSensor extends RingDevice {
 
     publishSensor() {
         const contact = this.ringDevice.data.faulted ? 'false' : 'true';
-        this.sensorNode.setProperty(SENSOR_PROPS.CONTACT).send(contact);
+        this.sensorNode.setProperty(SensorProps.CONTACT).send(contact);
     }
 }
-
-module.exports = ContactSensor;

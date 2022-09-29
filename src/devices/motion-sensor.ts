@@ -1,14 +1,23 @@
-const RingDevice = require('./ring-device');
-const { RingDeviceType } = require('ring-client-api');
+import HomieNode from 'homie-device/lib/HomieNode';
+import {Logger} from 'src/logger';
+import {RingDeviceType, RingDevice as RingClientDevice} from 'ring-client-api';
+import {RingDevice} from './ring-device';
+import {Settings} from 'src/config';
 
-const SENSOR_PROPS = {
+const SensorProps = {
     MOTION: 'motion',
     TAMPER: 'tamper'
 };
 
-class MotionSensor extends RingDevice {
-    constructor(ringDevice) {
-        super(ringDevice);
+export class MotionSensor extends RingDevice {
+    private sensorNode: HomieNode;
+
+    constructor(
+        logger: Logger,
+        settings: Settings,
+        ringDevice: RingClientDevice,
+    ) {
+        super(logger, settings, ringDevice);
         this.sensorNode = null;
         this.setSensorNode();
     }
@@ -22,7 +31,7 @@ class MotionSensor extends RingDevice {
 
         this
             .sensorNode
-            .advertise(SENSOR_PROPS.MOTION)
+            .advertise(SensorProps.MOTION)
             .setName("Motion")
             .setRetained(true)
             .setDatatype('boolean');
@@ -35,8 +44,6 @@ class MotionSensor extends RingDevice {
 
     publishSensor() {
         const motion = this.ringDevice.data.faulted ? 'true' : 'false';
-        this.sensorNode.setProperty(SENSOR_PROPS.MOTION).send(motion);
+        this.sensorNode.setProperty(SensorProps.MOTION).send(motion);
     }
 }
-
-module.exports = MotionSensor;

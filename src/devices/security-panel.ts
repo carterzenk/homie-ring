@@ -1,15 +1,22 @@
-const RingDevice = require('./ring-device');
-const { RingDeviceType } = require('ring-client-api');
-const logger = require('../logger');
+import {RingDevice} from './ring-device';
+import {RingDeviceType, RingDevice as RingClientDevice} from 'ring-client-api';
+import {Settings} from 'src/config';
+import {Logger} from 'src/logger';
+import HomieDevice from 'homie-device';
 
 const ALARM_PROPS = {
     MODE: 'mode'
 };
 
-class SecurityPanel extends RingDevice {
-    constructor(ringDevice) {
-        super(ringDevice);
-        this.alarmNode = null;
+export class SecurityPanel extends RingDevice {
+    private alarmNode: HomieDevice;
+
+    constructor(
+        logger: Logger,
+        settings: Settings,
+        ringDevice: RingClientDevice,
+    ) {
+        super(logger, settings, ringDevice);
         this.setAlarmNode();
     }
 
@@ -33,7 +40,7 @@ class SecurityPanel extends RingDevice {
 
     setAlarmMode(value) {
         if (['all', 'some', 'none'].indexOf(value) === -1) {
-            logger.error('Received unsupported {alarmMode}', {
+            this.logger.error('Received unsupported {alarmMode}', {
                 alarmMode: value
             });
 
@@ -55,5 +62,3 @@ class SecurityPanel extends RingDevice {
         this.alarmNode.setProperty(ALARM_PROPS.MODE).send(mode);
     }
 }
-
-module.exports = SecurityPanel;

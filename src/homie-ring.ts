@@ -1,15 +1,14 @@
-const logger = require('./logger');
-const config = require('./config');
-
-const { RingDeviceType } = require('ring-client-api');
-
-const CameraDevice = require('./devices/camera-device');
-const ContactSensor = require('./devices/contact-sensor');
-const Hub = require('./devices/hub');
-const MotionSensor = require('./devices/motion-sensor');
-const SecurityKeypad = require('./devices/security-keypad');
-const SecurityPanel = require('./devices/security-panel');
-const RangeExtender = require('./devices/range-extender');
+import {Location, RingApi, RingDevice, RingCamera, RingDeviceType} from 'ring-client-api';
+import {CameraDevice} from './devices/camera-device';
+import {ContactSensor} from './devices/contact-sensor';
+import {Hub} from './devices/hub';
+import {MotionSensor} from './devices/motion-sensor';
+import {SecurityKeypad} from './devices/security-keypad';
+import {SecurityPanel} from './devices/security-panel';
+import {RangeExtender} from './devices/range-extender';
+import {Logger} from './logger';
+import {Settings} from './config';
+import {BaseDevice} from './devices/base-device';
 
 const supportedDevices = [
     ContactSensor,
@@ -27,19 +26,22 @@ const ignoredDeviceTypes = [
     "adapter.zwave"
 ];
 
-class HomieRing {
-    constructor(ringApi) {
-        this.ringApi = ringApi;
-        this.devices = [];
-    }
+export class HomieRing {
+    private devices: Array<BaseDevice<RingDevice | RingCamera>> = [];
+
+    constructor(
+        private logger: Logger,
+        private settings: Settings,
+        private ringApi: RingApi,
+    ) {}
 
     async start() {
-        logger.info("Starting homie-ring...");
+        this.logger.info("Starting homie-ring...");
 
         try {
             await this.setupLocations();
         } catch (err) {
-            logger.error("Encountered an error while starting: ", err);
+            this.logger.error("Encountered an error while starting: ", err);
         }
     }
 
@@ -53,32 +55,34 @@ class HomieRing {
         await Promise.all(callbacks);
     }
 
-    async setupLocation(location) {
-        logger.info("Setting up {locationId}", {locationId: location.locationId});
+    async setupLocation(location: Location) {
+        this.logger.info("Setting up {locationId}", {locationId: location.locationId});
 
         await this.setupCameras(location);
         await this.setupDevices(location);
     }
 
-    async setupCameras(location) {
+    async setupCameras(location: Location) {
         await Promise.all(location.cameras.map(async camera => {
-            logger.info("Setting up {camera}", {
+            this.logger.info("Setting up {camera}", {
                 id: camera.id,
                 name: camera.name,
                 type: camera.deviceType
             });
 
             const cameraDevice = new CameraDevice(
+                this.logger,
+                this.settings,
                 camera,
                 location.locationId,
-                config.get().ring.cameraSnapshotPollingSeconds
+                this.settings.ring.cameraSnapshotPollingSeconds,
             );
             this.devices.push(cameraDevice);
             await cameraDevice.start();
         }));
     }
 
-    async setupDevices(location) {
+    async setupDevices(location: Location) {
         const locationDevices = await location.getDevices();
 
         const setupCallbacks = locationDevices
@@ -86,26 +90,27 @@ class HomieRing {
             .map(async device => {
                 await this.setupDevice(device);
             });
+
         await Promise.all(setupCallbacks);
     }
 
-    async setupDevice(device) {
+    async setupDevice(device: RingDevice) {
         const deviceType = supportedDevices.find(
             supportedDevice => supportedDevice.isSupported(device.deviceType)
         );
 
         if (deviceType) {
-            logger.info("Setting up {device}", {
+            this.logger.info("Setting up {device}", {
                 id: device.id,
                 name: device.name,
                 type: device.deviceType
             });
 
-            const ringDevice = new deviceType(device);
+            const ringDevice = new deviceType(this.logger, this.settings, device);
             this.devices.push(ringDevice);
             await ringDevice.start();
         } else {
-            logger.debug("Unknown device type {device}", {
+            this.logger.debug("Unknown device type {device}", {
                 type: device.deviceType,
                 data: device.data
             });
@@ -113,7 +118,7 @@ class HomieRing {
     }
 
     async stop() {
-        logger.info("Stopping MQTT connections...");
+        this.logger.info("Stopping MQTT connections...");
 
         const callbacks = this.devices.map(async device => {
             await device.stop();
@@ -122,5 +127,3 @@ class HomieRing {
         await Promise.all(callbacks);
     }
 }
-
-module.exports = HomieRing;
