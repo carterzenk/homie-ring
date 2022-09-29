@@ -3,3 +3,4 @@ package-lock.json
 config/homie-ring.yaml
 node_modules
 payloads
+dist
