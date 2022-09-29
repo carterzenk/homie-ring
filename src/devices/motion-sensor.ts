@@ -1,4 +1,4 @@
-import HomieNode from 'homie-device/lib/HomieNode';
+import HomieNode from 'homie-device/lib/homieNode';
 import {Logger} from 'src/logger';
 import {RingDeviceType, RingDevice as RingClientDevice} from 'ring-client-api';
 import {RingDevice} from './ring-device';
